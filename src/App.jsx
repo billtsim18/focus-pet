@@ -1,50 +1,42 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Pause, RotateCcw, ShoppingBag, X, Zap, Crown, Sparkles, BookOpen, Coffee, ScrollText, CheckCircle2, Circle, Heart, Minus, Plus, AlertTriangle, Shield, ShieldAlert, Monitor, Smartphone, Music, Volume2, VolumeX, PenLine } from 'lucide-react';
+import { Play, Pause, RotateCcw, ShoppingBag, X, Zap, Crown, Sparkles, BookOpen, Coffee, ScrollText, CheckCircle2, Circle, Heart, Minus, Plus, AlertTriangle, Shield, ShieldAlert, Monitor, Smartphone, Music, Volume2, VolumeX, PenLine, Save } from 'lucide-react';
 
 // --- 音效系統設定 ---
-// 確保檔案已放入 public/sounds/ 並正確命名
 const audioAssets = {
-  // SFX (單次音效)
   click: new Audio('/sounds/click.mp3'),
   coin: new Audio('/sounds/coin.mp3'),
   start: new Audio('/sounds/start.mp3'),
   meow: new Audio('/sounds/meow.mp3'),
-  
-  // BGM (循環背景音)
   rain: new Audio('/sounds/rain.mp3'),
   piano: new Audio('/sounds/piano.mp3'),
   '8bit': new Audio('/sounds/8bit.mp3'),
 };
 
-// 初始化音效屬性
 const initAudio = () => {
   ['rain', 'piano', '8bit'].forEach(key => {
     if (audioAssets[key]) {
-      audioAssets[key].loop = true; // BGM 設定循環
-      audioAssets[key].volume = 0.4; // BGM 音量設為 40%
+      audioAssets[key].loop = true; 
+      audioAssets[key].volume = 0.4; 
     }
   });
-  
   if (audioAssets.meow) audioAssets.meow.volume = 0.6;
   if (audioAssets.start) audioAssets.start.volume = 0.5;
   if (audioAssets.coin) audioAssets.coin.volume = 0.5;
   if (audioAssets.click) audioAssets.click.volume = 0.4;
 };
 
-// 執行初始化
 initAudio();
 
-// Helper: 播放 SFX
 const playSfx = (name) => {
   const audio = audioAssets[name];
   if (audio) {
-    audio.currentTime = 0; // 重置播放進度，允許連點
-    audio.play().catch(e => console.log("Audio play blocked:", e));
+    audio.currentTime = 0; 
+    audio.play().catch(e => console.log("Audio blocked:", e));
   }
 };
 
 // --- 組件：像素寵物 ---
-const PixelPet = ({ stage, color, mode, isActive, isPetting, onClick, emotion, message }) => {
+const PixelPet = ({ stage, color, mode, isActive, isPetting, onClick, emotion, message, dna }) => {
   const designs = {
     egg: ["0000000000000000", "0000002222000000", "0000221111220000", "0002111111112000", "0021113311111200", "0021133311111200", "0211111111111120", "0211111441111120", "0211111441111120", "0211111111111120", "0211111111111120", "0021111111111200", "0002111111112000", "0000221111220000", "0000002222000000", "0000000000000000"],
     baby: ["0000000000000000", "0000000000000000", "0000000000000000", "0000000000000000", "0000000222000000", "0000002111200000", "0000002111112000", "0000021111111200", "0002111111111200", "0002122111221200", "0002123111231200", "0021111111111120", "0021111444111120", "0002211111112200", "0000022222220000", "0000000000000000"],
@@ -61,10 +53,15 @@ const PixelPet = ({ stage, color, mode, isActive, isPetting, onClick, emotion, m
   else if (stage === 'master') animationClass = 'animate-[float_3s_ease-in-out_infinite]';
   else if (!isActive && mode !== 'break') animationClass = 'animate-[breathe_3s_ease-in-out_infinite]';
 
+  // 使用 DNA 微微調整顏色 (模擬個體差異)
+  const adjustColor = (hex, variance) => {
+    // 這裡簡化處理，直接返回原色，若要進階可加入 hex 計算
+    return hex; 
+  };
+
   return (
     <div className="relative group cursor-pointer flex flex-col items-center justify-end" onClick={onClick}>
       
-      {/* 對話氣泡 */}
       <div className={`absolute -top-24 transition-all duration-500 transform ${message ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-90'} z-20 w-max max-w-[200px]`}>
         <div className="relative bg-white text-slate-800 px-4 py-2.5 rounded-2xl shadow-xl font-bold text-sm text-center border-2 border-slate-100 animate-[bounce_3s_ease-in-out_infinite]">
           {message}
@@ -120,13 +117,18 @@ const App = () => {
     return [state, setState];
   };
 
-  // --- 狀態 ---
   const [xp, setXp] = usePersistedState('focusPet_xp', 0);
   const [coins, setCoins] = usePersistedState('focusPet_coins', 150);
   const [evolutionStage, setEvolutionStage] = usePersistedState('focusPet_stage', 'egg');
   const [petColor, setPetColor] = usePersistedState('focusPet_color', '#fbbf24');
   const [bgTheme, setBgTheme] = usePersistedState('focusPet_theme', 'minimal');
   
+  // 新增：寵物名字與 DNA
+  const [petName, setPetName] = usePersistedState('focusPet_name', '神秘的蛋');
+  const [petDNA, setPetDNA] = usePersistedState('focusPet_dna', Math.random()); // 0-1 之間的隨機數
+  // 新增：日記列表
+  const [diaryEntries, setDiaryEntries] = usePersistedState('focusPet_diary', []);
+
   const inventoryList = [
     { id: 'skin_orange', type: 'skin', name: '暖陽橘', price: 0, value: '#fbbf24', owned: true },
     { id: 'skin_gray', type: 'skin', name: '月岩灰', price: 100, value: '#94a3b8', owned: false },
@@ -144,7 +146,7 @@ const App = () => {
   const [taskName, setTaskName] = useState('');
   const [inputError, setInputError] = useState(false); 
   const [isPlayingSound, setIsPlayingSound] = useState(false);
-  const [soundType, setSoundType] = useState('rain'); // 預設 BGM
+  const [soundType, setSoundType] = useState('rain'); 
 
   const [strictMode, setStrictMode] = useState(false);
   const [isCheatDetected, setIsCheatDetected] = useState(false);
@@ -155,9 +157,12 @@ const App = () => {
   const [isPetting, setIsPetting] = useState(false);
   const [petMessage, setPetMessage] = useState('');
   const messageTimerRef = useRef(null);
+  
+  // UI 狀態
   const [showShop, setShowShop] = useState(false);
   const [showQuests, setShowQuests] = useState(false);
   const [showSounds, setShowSounds] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false); // 編輯名字狀態
 
   const [quests, setQuests] = useState([
     { id: 1, text: '完成 1 次專注', target: 1, current: 0, reward: 50, claimed: false },
@@ -168,35 +173,25 @@ const App = () => {
   const expectedCoins = focusDuration * 2;
   const expectedXp = Math.floor(focusDuration * 1.5);
 
-  // --- BGM 控制邏輯 ---
+  // --- BGM ---
   useEffect(() => {
-    // 1. 先暫停所有 BGM
-    ['rain', 'piano', '8bit'].forEach(key => {
-      if (audioAssets[key]) audioAssets[key].pause();
-    });
-
-    // 2. 如果開關開啟，播放當前選定的 BGM
+    ['rain', 'piano', '8bit'].forEach(key => { if (audioAssets[key]) audioAssets[key].pause(); });
     if (isPlayingSound) {
       const currentBgm = audioAssets[soundType];
-      if (currentBgm) {
-        // 嘗試播放，如果瀏覽器阻擋 (Autoplay Policy)，則會捕捉錯誤
-        currentBgm.play().catch(e => {
-          console.warn("BGM autoplay blocked:", e);
-          setIsPlayingSound(false); // 自動關閉開關，提示用戶手動開啟
-        });
-      }
+      if (currentBgm) currentBgm.play().catch(e => { console.warn("BGM blocked:", e); setIsPlayingSound(false); });
     }
   }, [isPlayingSound, soundType]);
 
+  // --- Visibility ---
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.hidden && isActive && mode === 'focus' && strictMode) {
-        setIsActive(false); setIsCheatDetected(true); setPetEmotion('sad'); setPetMessage("別走... 回來陪我...");
+        setIsActive(false); setIsCheatDetected(true); setPetEmotion('sad'); setPetMessage(`別走... ${petName} 會怕...`);
       }
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [isActive, mode, strictMode]);
+  }, [isActive, mode, strictMode, petName]);
 
   const adjustTime = (amount) => {
     if (!isIdle) return; 
@@ -210,7 +205,7 @@ const App = () => {
 
   const handleReset = () => {
     playSfx('click');
-    setIsActive(false); setTimeLeft(focusDuration * 60); setMode('focus'); setIsCheatDetected(false); setPetEmotion('normal'); setTaskName(''); setInputError(false);
+    setIsActive(false); setTimeLeft(focusDuration * 60); setMode('focus'); setIsCheatDetected(false); setPetEmotion('normal'); setTaskName('');
   };
 
   const handleResumeFromCheat = () => {
@@ -219,19 +214,9 @@ const App = () => {
   };
 
   const handleToggleTimer = () => {
-    if (!isActive) {
-      // 開始前檢查
-      if (mode === 'focus' && !taskName.trim()) {
-        playSfx('click'); // 錯誤也給個聲音
-        setInputError(true); setPetMessage("請先告訴我你要做什麼！📝");
-        setTimeout(() => setInputError(false), 500);
-        return; 
-      }
-      playSfx('start'); // 開始音效
-    } else {
-      playSfx('click'); // 暫停音效
-    }
-    setIsActive(!isActive); setInputError(false);
+    if (!isActive) playSfx('start'); else playSfx('click');
+    setIsActive(!isActive);
+    setInputError(false);
   };
 
   const updateQuestProgress = (type, amount = 1) => {
@@ -246,7 +231,7 @@ const App = () => {
   const claimReward = (questId) => {
     const quest = quests.find(q => q.id === questId);
     if (quest && quest.current >= quest.target && !quest.claimed) {
-      playSfx('coin'); // 金幣音效
+      playSfx('coin'); 
       setCoins(c => c + quest.reward);
       setQuests(prev => prev.map(q => q.id === questId ? { ...q, claimed: true } : q));
     }
@@ -255,23 +240,17 @@ const App = () => {
   const hasUnclaimedQuests = quests.some(q => q.current >= q.target && !q.claimed);
   const STAGES = { egg: { threshold: 0, label: '神秘的蛋' }, baby: { threshold: 100, label: '好奇寶寶' }, adult: { threshold: 300, label: '得力助手' }, master: { threshold: 800, label: '專注大師' } };
 
-  // 切換 BGM 類型
   const toggleSound = (type) => {
     playSfx('click');
-    if (isPlayingSound && soundType === type) {
-      setIsPlayingSound(false); // 點同一個就關閉
-    } else {
-      setSoundType(type);
-      setIsPlayingSound(true); // 點不同的就切換並播放
-      updateQuestProgress('use_sound');
-    }
+    if (isPlayingSound && soundType === type) setIsPlayingSound(false);
+    else { setSoundType(type); setIsPlayingSound(true); updateQuestProgress('use_sound'); }
   };
 
   const handlePetClick = () => {
     if (isPetting || isActive || isCheatDetected) return;
-    playSfx('meow'); // 喵~
+    playSfx('meow'); 
     setIsPetting(true); updateQuestProgress('interact');
-    const clickMessages = ["好癢喔！嘿嘿！", "最喜歡你了！❤️", "充滿活力！", "摸摸頭～"];
+    const clickMessages = [`${petName} 好開心！`, "最喜歡你了！❤️", "充滿活力！", "摸摸頭～"];
     setPetMessage(clickMessages[Math.floor(Math.random() * clickMessages.length)]);
     setTimeout(() => { setIsPetting(false); updateContextMessage(); }, 1000);
   };
@@ -282,12 +261,12 @@ const App = () => {
     
     if (mode === 'focus') {
       if (isActive) {
-        if (Math.random() > 0.6 && taskName) { setPetMessage(`專注於：${taskName}`); return; }
+        if (Math.random() > 0.6 && taskName) { setPetMessage(`${petName} 專注於：${taskName}`); return; }
         const totalTime = focusDuration * 60;
         const progress = 1 - (timeLeft / totalTime);
         let messages = [];
         if (progress < 0.2) messages = ["深呼吸... 準備好了嗎？", "好的開始！", "專注當下。"];
-        else if (progress < 0.8) messages = ["保持節奏...", "我在修煉中...", "噓... (認真)", "經驗值匯集中..."];
+        else if (progress < 0.8) messages = ["保持節奏...", `${petName} 在修煉中...`, "噓... (認真)", "經驗值匯集中..."];
         else messages = ["最後衝刺！", "金幣在等著你！", "快完成了！"];
         setPetMessage(messages[Math.floor(Math.random() * messages.length)]);
       } else {
@@ -305,7 +284,7 @@ const App = () => {
       messageTimerRef.current = setInterval(() => updateContextMessage(), 10000);
     } else if (!isActive) { if (messageTimerRef.current) clearInterval(messageTimerRef.current); }
     return () => { if (messageTimerRef.current) clearInterval(messageTimerRef.current); };
-  }, [isActive, mode, isEvolving, isPetting, focusDuration, isIdle, isCheatDetected, taskName]);
+  }, [isActive, mode, isEvolving, isPetting, focusDuration, isIdle, isCheatDetected, taskName, petName]);
 
   useEffect(() => {
     let interval = null;
@@ -326,17 +305,34 @@ const App = () => {
     else if (xp >= STAGES.adult.threshold) nextStage = 'adult';
     else if (xp >= STAGES.baby.threshold && evolutionStage === 'egg') nextStage = 'baby';
     if (nextStage !== evolutionStage) {
-      playSfx('coin'); // 進化音效
+      playSfx('coin'); 
       setIsEvolving(true); setPetMessage("進化的時刻...！");
       setTimeout(() => { setEvolutionStage(nextStage); setIsEvolving(false); setPetMessage(`我是${STAGES[nextStage].label.split(' ')[0]}！🎉`); }, 2500);
     }
   }, [xp]);
 
+  // 生成日記內容
+  const generateDiaryEntry = (task) => {
+    const date = new Date().toLocaleDateString('zh-TW', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    let content = "";
+    if (evolutionStage === 'egg') content = "蛋晃動了一下...";
+    else if (evolutionStage === 'baby') content = `今天玩了 ${focusDuration} 分鐘！好開心！`;
+    else if (evolutionStage === 'adult') content = `完成了「${task || '專注練習'}」。感覺變得更強了。`;
+    else content = `心流狀態持續 ${focusDuration} 分鐘。平靜，專注。`;
+    
+    return { id: Date.now(), date, content, stage: evolutionStage };
+  };
+
   const handleComplete = () => {
     if (mode === 'focus') {
-      playSfx('coin'); // 完成任務音效
+      playSfx('coin'); 
       setCoins(c => c + expectedCoins); setXp(x => x + expectedXp);
       updateQuestProgress('focus_complete', 1); updateQuestProgress('xp_gain', expectedXp);
+      
+      // 寫入日記
+      const newEntry = generateDiaryEntry(taskName);
+      setDiaryEntries(prev => [newEntry, ...prev].slice(0, 10)); // 只保留最新 10 筆
+
       setMode('break'); setTimeLeft(5 * 60);
       setPetMessage(`獲得 ${expectedCoins} 金幣！🎉`);
       setIsCheatDetected(false); setPetEmotion('normal');
@@ -366,7 +362,31 @@ const App = () => {
         <div className="px-6 pt-8 pb-4 flex justify-between items-start z-10 shrink-0">
           <div>
              <h2 className="text-[10px] font-bold opacity-60 tracking-widest uppercase mb-1">Companion</h2>
-             <span className="font-bold text-lg flex items-center gap-1">{STAGES[evolutionStage].label}{evolutionStage === 'master' && <Crown size={16} className="text-yellow-500" />}</span>
+             <div className="flex items-center gap-2">
+                {isEditingName ? (
+                  <div className="flex items-center gap-1">
+                    <input 
+                      type="text" 
+                      value={petName} 
+                      onChange={(e) => setPetName(e.target.value)}
+                      onBlur={() => setIsEditingName(false)} // 失去焦點時保存
+                      onKeyDown={(e) => e.key === 'Enter' && setIsEditingName(false)}
+                      autoFocus
+                      className="bg-white/50 border border-slate-300 rounded px-1 py-0.5 text-sm w-24 font-bold outline-none text-slate-800"
+                    />
+                    <button onClick={() => setIsEditingName(false)}><Save size={14} className="text-green-600"/></button>
+                  </div>
+                ) : (
+                  <button onClick={() => setIsEditingName(true)} className="font-bold text-lg flex items-center gap-2 hover:opacity-70 transition-opacity">
+                    {petName}
+                    <PenLine size={14} className="opacity-40" />
+                  </button>
+                )}
+             </div>
+             <div className="flex items-center gap-2 mt-1">
+                <span className="text-xs font-medium opacity-70">{STAGES[evolutionStage].label}</span>
+                {evolutionStage === 'master' && <Crown size={14} className="text-yellow-500" />}
+             </div>
              <div className="w-28 h-1.5 bg-black/10 rounded-full mt-2 overflow-hidden"><div className="h-full bg-indigo-500 transition-all duration-500" style={{ width: `${progress}%` }}></div></div>
           </div>
           <div className="flex gap-2">
@@ -398,7 +418,6 @@ const App = () => {
         {/* Main Content */}
         <div className="flex-grow flex flex-col items-center justify-center relative w-full px-6 py-4">
            
-           {/* Strict Mode Alert */}
            {isCheatDetected && (
              <div className="absolute inset-0 z-40 bg-black/80 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in duration-300 rounded-xl">
                <div className="bg-white w-full rounded-2xl p-6 text-center shadow-2xl">
@@ -412,27 +431,24 @@ const App = () => {
            
            {isEvolving && <div className="absolute inset-0 flex items-center justify-center z-20"><Sparkles className="w-48 h-48 text-yellow-300 animate-spin opacity-80" /><div className="absolute inset-0 bg-white/30 animate-pulse rounded-full blur-xl"></div></div>}
            
-           {/* Pet */}
            <div className={`transition-all duration-700 ${isEvolving ? 'opacity-0 scale-50' : 'opacity-100 scale-100'} mt-16`}>
               <PixelPet stage={evolutionStage} color={petColor} mode={mode} isActive={isActive} isPetting={isPetting} onClick={handlePetClick} emotion={petEmotion} message={petMessage} />
            </div>
 
-           {/* Controls */}
            <div className="my-8 text-center w-full">
              <div className={`inline-flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold tracking-widest uppercase transition-colors mb-6 shadow-sm ${isActive ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100/50 text-slate-500'}`}>
                 {mode === 'focus' ? (isActive ? <><BookOpen size={14} className="animate-pulse"/> 專注中</> : (isIdle ? '設定時間' : '已暫停')) : <><Coffee size={14} className="animate-bounce"/> 休息一下</>}
              </div>
              
-             {/* Task Input */}
              {isIdle && (
                <div className="mb-6 w-full max-w-[280px] mx-auto animate-in fade-in zoom-in duration-300">
                  <div className={`relative transition-transform ${inputError ? 'animate-error-shake' : ''}`}>
                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"><PenLine size={16} /></div>
                    <input 
                      type="text" 
-                     placeholder="這次要專注做什麼？(必填)"
+                     placeholder="這次要專注做什麼？"
                      value={taskName}
-                     onChange={(e) => { setTaskName(e.target.value); if(inputError) setInputError(false); }}
+                     onChange={(e) => setTaskName(e.target.value)}
                      className={`w-full bg-white/50 border rounded-xl py-3 pl-10 pr-4 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:font-normal transition-colors
                        ${inputError ? 'border-rose-500 ring-2 ring-rose-200 bg-rose-50' : 'border-slate-200'}`}
                    />
@@ -440,7 +456,6 @@ const App = () => {
                </div>
              )}
              
-             {/* Task Display */}
              {!isIdle && taskName && (
                <div className="mb-4 text-sm font-bold text-indigo-700 bg-indigo-50 px-4 py-1.5 rounded-full inline-block animate-in fade-in">
                  🎯 {taskName}
@@ -493,7 +508,6 @@ const App = () => {
                 {hasUnclaimedQuests && <div className="absolute top-0 right-0 w-5 h-5 bg-red-500 rounded-full border-2 border-white animate-pulse"></div>}
               </button>
               
-              {/* Play Button */}
               <button 
                 onClick={handleToggleTimer} 
                 className={`w-24 h-24 rounded-[2.5rem] flex items-center justify-center shadow-xl transition-all active:scale-95 border-4 border-white/50 ${isActive ? 'bg-rose-500 text-white shadow-rose-200' : 'bg-indigo-600 text-white shadow-indigo-200'}`}
@@ -507,7 +521,7 @@ const App = () => {
            </div>
         </div>
 
-        {/* Modals omitted for brevity - same as before just add sound to buttons */}
+        {/* Quest Modal (With Diary) */}
         {showQuests && (
            <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end">
              <div className="bg-white w-full h-[85vh] rounded-t-[2.5rem] p-6 flex flex-col animate-in slide-in-from-bottom duration-300 shadow-2xl safe-area-bottom">
@@ -516,23 +530,49 @@ const App = () => {
                   <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><ScrollText className="text-emerald-600" size={24} /> <span>每日修行</span></h2>
                   <button onClick={() => { playSfx('click'); setShowQuests(false); }} className="p-2 bg-slate-100 rounded-full active:bg-slate-200"><X size={20} /></button>
                 </div>
-                <div className="space-y-4 flex-1 overflow-y-auto px-2 pb-8">
-                   {quests.map(quest => {
-                     const isCompleted = quest.current >= quest.target;
-                     return (
-                       <div key={quest.id} className={`p-5 rounded-2xl border-2 flex items-center justify-between transition-all active:scale-[0.98] ${isCompleted ? (quest.claimed ? 'border-slate-100 bg-slate-50 opacity-60' : 'border-emerald-500 bg-emerald-50') : 'border-slate-100'}`}>
-                          <div className="flex items-center gap-4">
-                             <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isCompleted ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>{isCompleted ? <CheckCircle2 size={24} /> : <Circle size={24} />}</div>
-                             <div><div className="font-bold text-base text-slate-800">{quest.text}</div><div className="text-xs text-slate-400 mt-1">進度: {quest.current}/{quest.target}</div></div>
+                <div className="space-y-6 flex-1 overflow-y-auto px-2 pb-8 custom-scrollbar">
+                   {/* 任務列表 */}
+                   <div className="space-y-3">
+                     <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">今日目標</h3>
+                     {quests.map(quest => {
+                       const isCompleted = quest.current >= quest.target;
+                       return (
+                         <div key={quest.id} className={`p-4 rounded-2xl border-2 flex items-center justify-between transition-all active:scale-[0.98] ${isCompleted ? (quest.claimed ? 'border-slate-100 bg-slate-50 opacity-60' : 'border-emerald-500 bg-emerald-50') : 'border-slate-100'}`}>
+                            <div className="flex items-center gap-3">
+                               <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isCompleted ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>{isCompleted ? <CheckCircle2 size={20} /> : <Circle size={20} />}</div>
+                               <div><div className="font-bold text-sm text-slate-800">{quest.text}</div><div className="text-xs text-slate-400 mt-0.5">進度: {quest.current}/{quest.target}</div></div>
+                            </div>
+                            {isCompleted && !quest.claimed ? (<button onClick={() => claimReward(quest.id)} className="bg-emerald-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold animate-bounce shadow-md">領取 ${quest.reward}</button>) : quest.claimed ? (<span className="text-xs font-bold text-slate-400">已領取</span>) : (<span className="text-xs font-bold text-slate-400 bg-slate-100 px-3 py-1.5 rounded-lg">${quest.reward}</span>)}
+                         </div>
+                       );
+                     })}
+                   </div>
+
+                   {/* 心情日記 (新功能) */}
+                   <div className="space-y-3">
+                      <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">{petName} 的日記</h3>
+                      {diaryEntries.length === 0 ? (
+                        <div className="text-center py-8 text-slate-400 text-sm bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+                          這裡還空空的...<br/>完成一次專注來寫日記吧！
+                        </div>
+                      ) : (
+                        diaryEntries.map(entry => (
+                          <div key={entry.id} className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100">
+                             <div className="flex justify-between items-center mb-1">
+                               <span className="text-[10px] font-bold text-indigo-400 uppercase">{entry.date}</span>
+                               <span className="text-[10px] bg-white px-2 py-0.5 rounded-full text-indigo-300 border border-indigo-100">{STAGES[entry.stage].label}</span>
+                             </div>
+                             <p className="text-sm text-indigo-900 font-medium leading-relaxed">{entry.content}</p>
                           </div>
-                          {isCompleted && !quest.claimed ? (<button onClick={() => claimReward(quest.id)} className="bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-bold animate-bounce shadow-md">領取 ${quest.reward}</button>) : quest.claimed ? (<span className="text-xs font-bold text-slate-400">已領取</span>) : (<span className="text-xs font-bold text-slate-400 bg-slate-100 px-3 py-1.5 rounded-lg">${quest.reward}</span>)}
-                       </div>
-                     );
-                   })}
+                        ))
+                      )}
+                   </div>
                 </div>
              </div>
            </div>
         )}
+        
+        {/* Shop Modal */}
         {showShop && (
           <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end">
             <div className="bg-white w-full h-[85vh] rounded-t-[2.5rem] p-6 flex flex-col animate-in slide-in-from-bottom duration-300 shadow-2xl safe-area-bottom">
