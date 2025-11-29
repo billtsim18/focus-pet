@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, RotateCcw, ShoppingBag, X, Zap, Crown, Sparkles, BookOpen, Coffee, ScrollText, CheckCircle2, Circle, Heart, Minus, Plus, AlertTriangle, Shield, ShieldAlert, Monitor, Smartphone, Music, Volume2, VolumeX, PenLine, Save } from 'lucide-react';
-import confetti from 'canvas-confetti'; // 引入彩帶特效庫
+import confetti from 'canvas-confetti'; 
 
 // --- 音效系統設定 ---
 const audioAssets = {
@@ -36,19 +36,17 @@ const playSfx = (name) => {
   }
 };
 
-// --- 新增：動態天氣組件 ---
+// --- 動態天氣組件 ---
 const WeatherOverlay = ({ type }) => {
-  // 產生隨機樣式的陣列 (避免 hydration 錯誤，使用固定種子或 useEffect)
   const [particles, setParticles] = useState([]);
 
   useEffect(() => {
-    // 根據不同天氣生成粒子
     const count = type === 'rain' ? 30 : type === 'piano' ? 20 : 10;
     const newParticles = Array.from({ length: count }).map((_, i) => ({
       id: i,
       left: Math.random() * 100 + '%',
       delay: Math.random() * 2 + 's',
-      duration: Math.random() * 1 + 1 + 's', // 雨滴速度
+      duration: Math.random() * 1 + 1 + 's', 
       opacity: Math.random() * 0.5 + 0.3
     }));
     setParticles(newParticles);
@@ -67,7 +65,7 @@ const WeatherOverlay = ({ type }) => {
     );
   }
 
-  if (type === 'piano') { // 星空模式
+  if (type === 'piano') { 
     return (
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 bg-indigo-900/20">
         {particles.map(p => (
@@ -80,7 +78,7 @@ const WeatherOverlay = ({ type }) => {
     );
   }
   
-  if (type === '8bit') { // 漂浮像素雲
+  if (type === '8bit') { 
      return (
        <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
           <div className="absolute top-10 left-[-20%] text-4xl opacity-40 animate-[cloud_20s_linear_infinite]">☁️</div>
@@ -92,7 +90,6 @@ const WeatherOverlay = ({ type }) => {
 
   return null;
 };
-
 
 // --- 組件：像素寵物 ---
 const PixelPet = ({ stage, color, mode, isActive, isPetting, onClick, emotion, message, dna }) => {
@@ -146,12 +143,13 @@ const PixelPet = ({ stage, color, mode, isActive, isPetting, onClick, emotion, m
       </div>
       <div className={`mx-auto bg-black/10 rounded-[100%] blur-sm transition-all duration-1000 ${stage === 'master' ? 'w-32 h-3 animate-[shadow_3s_ease-in-out_infinite]' : 'w-36 h-4 mt-2'}`}></div>
       {mode === 'break' && <div className="absolute -top-6 right-4 text-3xl animate-bounce">💤</div>}
-      
       <style>{`
         @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-15px); } }
         @keyframes shadow { 0%, 100% { transform: scale(1); opacity: 0.3; } 50% { transform: scale(0.8); opacity: 0.1; } }
         @keyframes breathe { 0%, 100% { transform: translateY(0px) scale(1); } 50% { transform: translateY(-3px) scale(1.02); } }
         @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-2px); } 75% { transform: translateX(2px); } }
+        @keyframes errorShake { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-5px); } 40%, 80% { transform: translateX(5px); } }
+        .animate-error-shake { animation: errorShake 0.4s ease-in-out; }
       `}</style>
     </div>
   );
@@ -169,7 +167,6 @@ const App = () => {
     return [state, setState];
   };
 
-  // --- 狀態 ---
   const [xp, setXp] = usePersistedState('focusPet_xp', 0);
   const [coins, setCoins] = usePersistedState('focusPet_coins', 150);
   const [evolutionStage, setEvolutionStage] = usePersistedState('focusPet_stage', 'egg');
@@ -414,8 +411,23 @@ const App = () => {
         ${bgTheme === 'lofi' ? 'md:border-indigo-900 bg-indigo-900/50' : 'md:border-white bg-white/60'}
       `}>
         
-        {/* 頂部資訊欄 */}
-        <div className="px-6 pt-8 pb-4 flex justify-between items-start z-10 shrink-0">
+        {/* 移至最外層：動態天氣背景 */}
+        {isPlayingSound && <WeatherOverlay type={soundType} />}
+
+        {/* 移至最外層：嚴格模式警告 (覆蓋整個卡片) */}
+        {isCheatDetected && (
+             <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in duration-300 rounded-[2.5rem] overflow-hidden">
+               <div className="bg-white w-full rounded-2xl p-6 text-center shadow-2xl">
+                 <div className="w-16 h-16 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce"><AlertTriangle size={32} /></div>
+                 <h3 className="text-xl font-bold text-slate-800 mb-2">專注中斷！</h3>
+                 <p className="text-sm text-slate-600 mb-6 leading-relaxed">嚴格模式下切換視窗<br/>會導致任務暫停！</p>
+                 <button onClick={handleResumeFromCheat} className="w-full bg-indigo-600 text-white font-bold py-3.5 rounded-xl hover:bg-indigo-700 active:scale-95 transition-all">我回來了 (繼續計時)</button>
+               </div>
+             </div>
+        )}
+
+        {/* Top Info */}
+        <div className="px-6 pt-8 pb-4 flex justify-between items-start z-10 shrink-0 relative">
           <div>
              <h2 className="text-[10px] font-bold opacity-60 tracking-widest uppercase mb-1">Companion</h2>
              <div className="flex items-center gap-2">
@@ -457,7 +469,7 @@ const App = () => {
 
         {/* Sound Menu */}
         {showSounds && (
-          <div className="mx-6 mb-2 p-3 bg-white/80 backdrop-blur-md rounded-2xl flex justify-around shadow-sm animate-in slide-in-from-top-2 border border-white/50">
+          <div className="mx-6 mb-2 p-3 bg-white/80 backdrop-blur-md rounded-2xl flex justify-around shadow-sm animate-in slide-in-from-top-2 border border-white/50 relative z-10">
              {[ {id:'rain', label:'雨聲', icon:'🌧️'}, {id:'piano', label:'鋼琴', icon:'🎹'}, {id:'8bit', label:'8-Bit', icon:'👾'} ].map(s => (
                <button 
                  key={s.id} 
@@ -472,21 +484,9 @@ const App = () => {
         )}
 
         {/* Main Content */}
-        <div className="flex-grow flex flex-col items-center justify-center relative w-full px-6 py-4">
+        <div className="flex-grow flex flex-col items-center justify-center relative w-full px-6 py-4 z-10">
            
-           {/* 動態天氣背景 (放在最底層) */}
-           {isPlayingSound && <WeatherOverlay type={soundType} />}
-
-           {isCheatDetected && (
-             <div className="absolute inset-0 z-40 bg-black/80 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in duration-300 rounded-xl">
-               <div className="bg-white w-full rounded-2xl p-6 text-center shadow-2xl">
-                 <div className="w-16 h-16 bg-amber-100 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce"><AlertTriangle size={32} /></div>
-                 <h3 className="text-xl font-bold text-slate-800 mb-2">專注中斷！</h3>
-                 <p className="text-sm text-slate-600 mb-6 leading-relaxed">嚴格模式下切換視窗<br/>會導致任務暫停！</p>
-                 <button onClick={handleResumeFromCheat} className="w-full bg-indigo-600 text-white font-bold py-3.5 rounded-xl hover:bg-indigo-700 active:scale-95 transition-all">我回來了 (繼續計時)</button>
-               </div>
-             </div>
-           )}
+           {/* 移除舊的嚴格模式警告位置 */}
            
            {isEvolving && <div className="absolute inset-0 flex items-center justify-center z-20"><Sparkles className="w-48 h-48 text-yellow-300 animate-spin opacity-80" /><div className="absolute inset-0 bg-white/30 animate-pulse rounded-full blur-xl"></div></div>}
            
@@ -627,6 +627,7 @@ const App = () => {
            </div>
         )}
         
+        {/* Shop Modal */}
         {showShop && (
           <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end">
             <div className="bg-white w-full h-[85vh] rounded-t-[2.5rem] p-6 flex flex-col animate-in slide-in-from-bottom duration-300 shadow-2xl safe-area-bottom">
