@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, RotateCcw, ShoppingBag, X, Zap, Crown, Sparkles, BookOpen, Coffee, ScrollText, CheckCircle2, Circle, Heart, Minus, Plus, AlertTriangle, Shield, ShieldAlert, Monitor, Smartphone, Music, Volume2, VolumeX, PenLine, Save } from 'lucide-react';
+import confetti from 'canvas-confetti'; // 引入彩帶特效庫
 
 // --- 音效系統設定 ---
 const audioAssets = {
@@ -35,11 +36,69 @@ const playSfx = (name) => {
   }
 };
 
+// --- 新增：動態天氣組件 ---
+const WeatherOverlay = ({ type }) => {
+  // 產生隨機樣式的陣列 (避免 hydration 錯誤，使用固定種子或 useEffect)
+  const [particles, setParticles] = useState([]);
+
+  useEffect(() => {
+    // 根據不同天氣生成粒子
+    const count = type === 'rain' ? 30 : type === 'piano' ? 20 : 10;
+    const newParticles = Array.from({ length: count }).map((_, i) => ({
+      id: i,
+      left: Math.random() * 100 + '%',
+      delay: Math.random() * 2 + 's',
+      duration: Math.random() * 1 + 1 + 's', // 雨滴速度
+      opacity: Math.random() * 0.5 + 0.3
+    }));
+    setParticles(newParticles);
+  }, [type]);
+
+  if (type === 'rain') {
+    return (
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+        {particles.map(p => (
+          <div key={p.id} className="absolute bg-indigo-300 w-[2px] h-4 rounded-full animate-[rain_1s_linear_infinite]"
+            style={{ left: p.left, animationDelay: p.delay, animationDuration: p.duration, opacity: p.opacity, top: '-20px' }} 
+          />
+        ))}
+        <style>{`@keyframes rain { 0% { transform: translateY(0); } 100% { transform: translateY(100vh); } }`}</style>
+      </div>
+    );
+  }
+
+  if (type === 'piano') { // 星空模式
+    return (
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 bg-indigo-900/20">
+        {particles.map(p => (
+          <div key={p.id} className="absolute bg-white w-1 h-1 rounded-full animate-[twinkle_3s_ease-in-out_infinite]"
+            style={{ left: p.left, top: Math.random() * 80 + '%', animationDelay: p.delay, opacity: p.opacity }} 
+          />
+        ))}
+        <style>{`@keyframes twinkle { 0%, 100% { opacity: 0.2; transform: scale(0.8); } 50% { opacity: 1; transform: scale(1.2); } }`}</style>
+      </div>
+    );
+  }
+  
+  if (type === '8bit') { // 漂浮像素雲
+     return (
+       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+          <div className="absolute top-10 left-[-20%] text-4xl opacity-40 animate-[cloud_20s_linear_infinite]">☁️</div>
+          <div className="absolute top-32 left-[-10%] text-2xl opacity-30 animate-[cloud_25s_linear_infinite]" style={{animationDelay: '5s'}}>☁️</div>
+          <style>{`@keyframes cloud { 0% { transform: translateX(-50px); } 100% { transform: translateX(120vw); } }`}</style>
+       </div>
+     )
+  }
+
+  return null;
+};
+
+
 // --- 組件：像素寵物 ---
 const PixelPet = ({ stage, color, mode, isActive, isPetting, onClick, emotion, message, dna }) => {
   const designs = {
     egg: ["0000000000000000", "0000002222000000", "0000221111220000", "0002111111112000", "0021113311111200", "0021133311111200", "0211111111111120", "0211111441111120", "0211111441111120", "0211111111111120", "0211111111111120", "0021111111111200", "0002111111112000", "0000221111220000", "0000002222000000", "0000000000000000"],
-    baby: ["0000000000000000", "0000000000000000", "0000000000000000", "0000000000000000", "0000000222000000", "0000002111200000", "0000002111112000", "0000021111111200", "0002111111111200", "0002122111221200", "0002123111231200", "0021111111111120", "0021111444111120", "0002211111112200", "0000022222220000", "0000000000000000"],
+    baby: ["0000000000000000", "0000000000000000", "0000000000000000", "0000000000000000", "0000000222000000", "0000002111200000", "0000002111112000", "0000002111111120", "0002111111111200", "0002122111221200", "0002123111231200", "0021111111111120", "0021111444111120", "0000221111112200", "0000002222222000", "0000000000000000"],
     adult: ["0000000000000000", "0000000000000000", "0002200000002200", "0021200000021200", "0021122222211200", "0021111111111200", "0021122111221200", "0021123111231200", "0021111111111200", "0002111111112000", "0002111111112002", "0021111111111221", "0021111111111121", "0021111111112212", "0002222222221120", "0000000000002200"],
     master: ["0000000000000000", "0000002222200000", "0000021111120000", "0000211111112000", "0000212212212000", "0002111111111200", "0002444444444200", "0024444444444420", "0021111111111220", "0211111111111120", "0212211111112120", "0221122222221120", "0002200000002200", "0000000000000000", "0000000000000000", "0000000000000000"]
   };
@@ -53,14 +112,8 @@ const PixelPet = ({ stage, color, mode, isActive, isPetting, onClick, emotion, m
   else if (stage === 'master') animationClass = 'animate-[float_3s_ease-in-out_infinite]';
   else if (!isActive && mode !== 'break') animationClass = 'animate-[breathe_3s_ease-in-out_infinite]';
 
-  // 使用 DNA 微微調整顏色 (模擬個體差異)
-  const adjustColor = (hex, variance) => {
-    // 這裡簡化處理，直接返回原色，若要進階可加入 hex 計算
-    return hex; 
-  };
-
   return (
-    <div className="relative group cursor-pointer flex flex-col items-center justify-end" onClick={onClick}>
+    <div className="relative group cursor-pointer flex flex-col items-center justify-end z-10" onClick={onClick}>
       
       <div className={`absolute -top-24 transition-all duration-500 transform ${message ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 scale-90'} z-20 w-max max-w-[200px]`}>
         <div className="relative bg-white text-slate-800 px-4 py-2.5 rounded-2xl shadow-xl font-bold text-sm text-center border-2 border-slate-100 animate-[bounce_3s_ease-in-out_infinite]">
@@ -93,13 +146,12 @@ const PixelPet = ({ stage, color, mode, isActive, isPetting, onClick, emotion, m
       </div>
       <div className={`mx-auto bg-black/10 rounded-[100%] blur-sm transition-all duration-1000 ${stage === 'master' ? 'w-32 h-3 animate-[shadow_3s_ease-in-out_infinite]' : 'w-36 h-4 mt-2'}`}></div>
       {mode === 'break' && <div className="absolute -top-6 right-4 text-3xl animate-bounce">💤</div>}
+      
       <style>{`
         @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-15px); } }
         @keyframes shadow { 0%, 100% { transform: scale(1); opacity: 0.3; } 50% { transform: scale(0.8); opacity: 0.1; } }
         @keyframes breathe { 0%, 100% { transform: translateY(0px) scale(1); } 50% { transform: translateY(-3px) scale(1.02); } }
         @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-2px); } 75% { transform: translateX(2px); } }
-        @keyframes errorShake { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-5px); } 40%, 80% { transform: translateX(5px); } }
-        .animate-error-shake { animation: errorShake 0.4s ease-in-out; }
       `}</style>
     </div>
   );
@@ -117,16 +169,15 @@ const App = () => {
     return [state, setState];
   };
 
+  // --- 狀態 ---
   const [xp, setXp] = usePersistedState('focusPet_xp', 0);
   const [coins, setCoins] = usePersistedState('focusPet_coins', 150);
   const [evolutionStage, setEvolutionStage] = usePersistedState('focusPet_stage', 'egg');
   const [petColor, setPetColor] = usePersistedState('focusPet_color', '#fbbf24');
   const [bgTheme, setBgTheme] = usePersistedState('focusPet_theme', 'minimal');
   
-  // 新增：寵物名字與 DNA
   const [petName, setPetName] = usePersistedState('focusPet_name', '神秘的蛋');
-  const [petDNA, setPetDNA] = usePersistedState('focusPet_dna', Math.random()); // 0-1 之間的隨機數
-  // 新增：日記列表
+  const [petDNA, setPetDNA] = usePersistedState('focusPet_dna', Math.random()); 
   const [diaryEntries, setDiaryEntries] = usePersistedState('focusPet_diary', []);
 
   const inventoryList = [
@@ -158,11 +209,10 @@ const App = () => {
   const [petMessage, setPetMessage] = useState('');
   const messageTimerRef = useRef(null);
   
-  // UI 狀態
   const [showShop, setShowShop] = useState(false);
   const [showQuests, setShowQuests] = useState(false);
   const [showSounds, setShowSounds] = useState(false);
-  const [isEditingName, setIsEditingName] = useState(false); // 編輯名字狀態
+  const [isEditingName, setIsEditingName] = useState(false);
 
   const [quests, setQuests] = useState([
     { id: 1, text: '完成 1 次專注', target: 1, current: 0, reward: 50, claimed: false },
@@ -311,7 +361,6 @@ const App = () => {
     }
   }, [xp]);
 
-  // 生成日記內容
   const generateDiaryEntry = (task) => {
     const date = new Date().toLocaleDateString('zh-TW', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
     let content = "";
@@ -326,12 +375,19 @@ const App = () => {
   const handleComplete = () => {
     if (mode === 'focus') {
       playSfx('coin'); 
+      // 觸發彩帶特效！
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#FBBF24', '#818CF8', '#34D399']
+      });
+
       setCoins(c => c + expectedCoins); setXp(x => x + expectedXp);
       updateQuestProgress('focus_complete', 1); updateQuestProgress('xp_gain', expectedXp);
       
-      // 寫入日記
       const newEntry = generateDiaryEntry(taskName);
-      setDiaryEntries(prev => [newEntry, ...prev].slice(0, 10)); // 只保留最新 10 筆
+      setDiaryEntries(prev => [newEntry, ...prev].slice(0, 10)); 
 
       setMode('break'); setTimeLeft(5 * 60);
       setPetMessage(`獲得 ${expectedCoins} 金幣！🎉`);
@@ -358,7 +414,7 @@ const App = () => {
         ${bgTheme === 'lofi' ? 'md:border-indigo-900 bg-indigo-900/50' : 'md:border-white bg-white/60'}
       `}>
         
-        {/* Top Info */}
+        {/* 頂部資訊欄 */}
         <div className="px-6 pt-8 pb-4 flex justify-between items-start z-10 shrink-0">
           <div>
              <h2 className="text-[10px] font-bold opacity-60 tracking-widest uppercase mb-1">Companion</h2>
@@ -369,7 +425,7 @@ const App = () => {
                       type="text" 
                       value={petName} 
                       onChange={(e) => setPetName(e.target.value)}
-                      onBlur={() => setIsEditingName(false)} // 失去焦點時保存
+                      onBlur={() => setIsEditingName(false)}
                       onKeyDown={(e) => e.key === 'Enter' && setIsEditingName(false)}
                       autoFocus
                       className="bg-white/50 border border-slate-300 rounded px-1 py-0.5 text-sm w-24 font-bold outline-none text-slate-800"
@@ -418,6 +474,9 @@ const App = () => {
         {/* Main Content */}
         <div className="flex-grow flex flex-col items-center justify-center relative w-full px-6 py-4">
            
+           {/* 動態天氣背景 (放在最底層) */}
+           {isPlayingSound && <WeatherOverlay type={soundType} />}
+
            {isCheatDetected && (
              <div className="absolute inset-0 z-40 bg-black/80 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in duration-300 rounded-xl">
                <div className="bg-white w-full rounded-2xl p-6 text-center shadow-2xl">
@@ -431,11 +490,11 @@ const App = () => {
            
            {isEvolving && <div className="absolute inset-0 flex items-center justify-center z-20"><Sparkles className="w-48 h-48 text-yellow-300 animate-spin opacity-80" /><div className="absolute inset-0 bg-white/30 animate-pulse rounded-full blur-xl"></div></div>}
            
-           <div className={`transition-all duration-700 ${isEvolving ? 'opacity-0 scale-50' : 'opacity-100 scale-100'} mt-16`}>
+           <div className={`transition-all duration-700 ${isEvolving ? 'opacity-0 scale-50' : 'opacity-100 scale-100'} mt-16 z-10`}>
               <PixelPet stage={evolutionStage} color={petColor} mode={mode} isActive={isActive} isPetting={isPetting} onClick={handlePetClick} emotion={petEmotion} message={petMessage} />
            </div>
 
-           <div className="my-8 text-center w-full">
+           <div className="my-8 text-center w-full z-10">
              <div className={`inline-flex items-center gap-2 px-5 py-2 rounded-full text-xs font-bold tracking-widest uppercase transition-colors mb-6 shadow-sm ${isActive ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100/50 text-slate-500'}`}>
                 {mode === 'focus' ? (isActive ? <><BookOpen size={14} className="animate-pulse"/> 專注中</> : (isIdle ? '設定時間' : '已暫停')) : <><Coffee size={14} className="animate-bounce"/> 休息一下</>}
              </div>
@@ -501,7 +560,7 @@ const App = () => {
         </div>
 
         {/* Bottom Bar */}
-        <div className="pb-12 pt-4 px-8 w-full shrink-0">
+        <div className="pb-12 pt-4 px-8 w-full shrink-0 z-10">
            <div className="flex justify-between items-center max-w-sm mx-auto gap-4">
               <button onClick={() => { playSfx('click'); setShowQuests(true); }} className="w-16 h-16 rounded-full bg-emerald-100/90 backdrop-blur-sm text-emerald-700 flex items-center justify-center transition-all active:scale-90 shadow-lg relative border-2 border-white/50">
                 <ScrollText size={24} />
@@ -521,7 +580,7 @@ const App = () => {
            </div>
         </div>
 
-        {/* Quest Modal (With Diary) */}
+        {/* Modals */}
         {showQuests && (
            <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end">
              <div className="bg-white w-full h-[85vh] rounded-t-[2.5rem] p-6 flex flex-col animate-in slide-in-from-bottom duration-300 shadow-2xl safe-area-bottom">
@@ -531,7 +590,6 @@ const App = () => {
                   <button onClick={() => { playSfx('click'); setShowQuests(false); }} className="p-2 bg-slate-100 rounded-full active:bg-slate-200"><X size={20} /></button>
                 </div>
                 <div className="space-y-6 flex-1 overflow-y-auto px-2 pb-8 custom-scrollbar">
-                   {/* 任務列表 */}
                    <div className="space-y-3">
                      <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">今日目標</h3>
                      {quests.map(quest => {
@@ -548,13 +606,10 @@ const App = () => {
                      })}
                    </div>
 
-                   {/* 心情日記 (新功能) */}
                    <div className="space-y-3">
                       <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">{petName} 的日記</h3>
                       {diaryEntries.length === 0 ? (
-                        <div className="text-center py-8 text-slate-400 text-sm bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
-                          這裡還空空的...<br/>完成一次專注來寫日記吧！
-                        </div>
+                        <div className="text-center py-8 text-slate-400 text-sm bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">這裡還空空的...<br/>完成一次專注來寫日記吧！</div>
                       ) : (
                         diaryEntries.map(entry => (
                           <div key={entry.id} className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100">
@@ -572,7 +627,6 @@ const App = () => {
            </div>
         )}
         
-        {/* Shop Modal */}
         {showShop && (
           <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end">
             <div className="bg-white w-full h-[85vh] rounded-t-[2.5rem] p-6 flex flex-col animate-in slide-in-from-bottom duration-300 shadow-2xl safe-area-bottom">
